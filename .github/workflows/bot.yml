@@ -6,6 +6,13 @@ on:
   schedule:
     - cron: "*/5 * * * *"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: fomo-meme-hunter
+  cancel-in-progress: false
+
 jobs:
   run-bot:
     runs-on: ubuntu-latest
@@ -21,9 +28,23 @@ jobs:
       - name: Install requirements
         run: pip install -r requirements.txt
 
-      - name: Test Telegram notification
+      - name: Restore alert history
+        uses: actions/cache/restore@v4
+        with:
+          path: sent_alerts.json
+          key: alerts-${{ github.run_id }}
+          restore-keys: |
+            alerts-
+
+      - name: Scan meme coins
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py
-        
+
+      - name: Save alert history
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: sent_alerts.json
+          key: alerts-${{ github.run_id }}
